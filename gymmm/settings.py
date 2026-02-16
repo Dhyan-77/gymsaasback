@@ -175,10 +175,15 @@ CORS_ALLOW_HEADERS = list(default_headers) + ["authorization"]
 
 # If you want strict mode later, do this instead:
 # CORS_ALLOW_ALL_ORIGINS = False
+# Include both www and non-www; mobile sometimes opens one or the other
 CORS_ALLOWED_ORIGINS = [
-     "http://localhost:5173",
-     "http://127.0.0.1:5173",
-     "https://gymsaasdhyan.netlify.app",
- ]
+    "https://gymsaasdhyan.netlify.app",
+    "https://www.gymsaasdhyan.netlify.app",
+]
+# For mobile testing on same WiFi, add your frontend origin, e.g.:
+# CORS_EXTRA_ORIGINS=http://192.168.1.5:5173
+_extra = os.getenv("CORS_EXTRA_ORIGINS", "")
+if _extra:
+    CORS_ALLOWED_ORIGINS = list(CORS_ALLOWED_ORIGINS) + [s.strip() for s in _extra.split(",") if s.strip()]
 
 CORS_ALLOW_CREDENTIALS = True
