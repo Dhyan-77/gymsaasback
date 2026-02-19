@@ -96,25 +96,35 @@ WSGI_APPLICATION = "gymmm.wsgi.application"
 # =========================
 # Database (Railway)
 # =========================
-DATABASE_URL = os.getenv("DATABASE_URL")
+#DATABASE_URL = os.getenv("DATABASE_URL")
 
-if DATABASE_URL:
-    # Railway/Postgres - force SSL (beginner safe)
-    DATABASES = {
-        "default": dj_database_url.config(
-            default=DATABASE_URL,
-            conn_max_age=600,
-            ssl_require=True,
-        )
-    }
-else:
-    # Local dev fallback
+DB_LIVE = os.getenv("DB_LIVE")
+
+
+
+if DB_LIVE in ["False",False]:
+
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
+           "NAME": BASE_DIR / "db.sqlite3",
         }
     }
+
+else :
+    DATABASES ={
+    'default':{
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME' : os.getenv("DB_NAME"),
+        'USER' : os.getenv("DB_USER"),
+        'PASSWORD' : os.getenv("DB_PASSWORD"),
+        'HOST' : os.getenv("DB_HOST"),
+        'PORT' : os.getenv("DB_PORT")
+    }
+    }
+
+
+
 
 # =========================
 # Password validation
@@ -175,10 +185,12 @@ CORS_ALLOW_HEADERS = list(default_headers) + ["authorization"]
 
 # If you want strict mode later, do this instead:
 # CORS_ALLOW_ALL_ORIGINS = False
-# Include both www and non-www; mobile sometimes opens one or the other
+# Netlify (production) + local dev (so npm run dev → Railway works)
 CORS_ALLOWED_ORIGINS = [
     "https://gymsaasdhyan.netlify.app",
     "https://www.gymsaasdhyan.netlify.app",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
 ]
 # For mobile testing on same WiFi, add your frontend origin, e.g.:
 # CORS_EXTRA_ORIGINS=http://192.168.1.5:5173
