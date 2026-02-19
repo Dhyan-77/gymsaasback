@@ -177,6 +177,8 @@ SIMPLE_JWT = {
 # =========================
 CORS_ALLOW_HEADERS = list(default_headers) + ["authorization"]
 
+CSRF_TRUSTED_ORIGINS = ["https://unique-enthusiasm-production.up.railway.app"]
+
 # IMPORTANT:
 # - Don't put "*" inside CORS_ALLOWED_ORIGINS (invalid)
 # - Use allow-all only while testing
