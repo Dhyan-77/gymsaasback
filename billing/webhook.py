@@ -14,7 +14,6 @@ from .client import razorpay_client
 
 
 def _ts_to_dt(ts: int | None):
-    """Razorpay timestamps are UNIX seconds."""
     if not ts:
         return None
     return datetime.fromtimestamp(ts, tz=dt_timezone.utc)
@@ -22,36 +21,33 @@ def _ts_to_dt(ts: int | None):
 
 @method_decorator(csrf_exempt, name="dispatch")
 class RazorpayWebhookView(APIView):
-    authentication_classes = []  # Razorpay is not logged in
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
-        # 1) Raw body + signature header
-        body_bytes = request.body  # bytes (RAW)
-        body_str = body_bytes.decode("utf-8")  # ✅ verify_webhook_signature expects str
+        # 1) RAW body + signature
+        body_bytes = request.body
+        body_str = body_bytes.decode("utf-8", errors="ignore")
 
         signature = (
             request.headers.get("X-Razorpay-Signature")
             or request.META.get("HTTP_X_RAZORPAY_SIGNATURE")
             or ""
         )
-
         if not signature:
-            # No signature => not Razorpay (or proxy stripped header)
             return HttpResponse("Missing signature", status=400)
 
-        # 2) Verify signature
+        # 2) Verify signature (must verify on raw string body)
         try:
             razorpay_client.utility.verify_webhook_signature(
                 body_str,
                 signature,
                 settings.RAZORPAY_WEBHOOK_SECRET,
             )
-        except Exception as e:
-            # Important: return 400 so Razorpay knows it failed (and retries)
-            return HttpResponse(f"Invalid signature: {str(e)}", status=400)
+        except Exception:
+            return HttpResponse("Invalid signature", status=400)
 
-        # 3) Parse payload
+        # 3) Parse JSON
         try:
             payload = json.loads(body_str)
         except json.JSONDecodeError:
@@ -59,44 +55,27 @@ class RazorpayWebhookView(APIView):
 
         event = payload.get("event", "unknown")
 
-        # 4) Extract subscription id (some events may not contain it)
-        subscription_entity = (
+        # 4) Extract subscription id (Razorpay sends different payload shapes for different events)
+        subscription_id = (
             payload.get("payload", {})
             .get("subscription", {})
             .get("entity", {})
+            .get("id")
         )
-        subscription_id = subscription_entity.get("id")
 
-        # If event doesn't include subscription info, acknowledge (200) and exit.
+        # Some events won't have subscription data; just ACK 200
         if not subscription_id:
-            # Still optionally store event for audit:
-            PaymentEvent.objects.create(
-                subscription=None,
-                event_type=event,
-                razorpay_payment_id=None,
-                razorpay_invoice_id=None,
-                amount_inr=None,
-                payload=payload,
-            )
             return HttpResponse(status=200)
 
         sub = OwnerSubscription.objects.filter(
             razorpay_subscription_id=subscription_id
         ).first()
 
-        # If we can't match, ACK 200 so Razorpay doesn't retry forever.
+        # If we can't match, ACK 200 (don't retry forever)
         if not sub:
-            PaymentEvent.objects.create(
-                subscription=None,
-                event_type=event,
-                razorpay_payment_id=None,
-                razorpay_invoice_id=None,
-                amount_inr=None,
-                payload=payload,
-            )
             return HttpResponse(status=200)
 
-        # 5) Log event (audit/debug)
+        # 5) Log the event (ONLY when sub exists)
         payment_entity = (
             payload.get("payload", {})
             .get("payment", {})
@@ -120,39 +99,37 @@ class RazorpayWebhookView(APIView):
             payload=payload,
         )
 
-        # 6) Update subscription status + dates (idempotent)
-        try:
-            if event in ("subscription.activated", "subscription.charged", "subscription.resumed"):
-                sub.status = OwnerSubscription.Status.ACTIVE
+        # 6) Update subscription status + dates
+        if event in ("subscription.activated", "subscription.charged", "subscription.resumed"):
+            sub.status = OwnerSubscription.Status.ACTIVE
 
-                # Fetch subscription from Razorpay to get dates
+            # Fetch fresh dates from Razorpay (safe)
+            try:
                 rp = razorpay_client.subscription.fetch(subscription_id)
                 sub.current_start = _ts_to_dt(rp.get("current_start"))
                 sub.current_end = _ts_to_dt(rp.get("current_end"))
 
-                # customer_id may exist on rp data (optional)
+                # Optional: store customer_id if you have the field
                 rp_customer_id = rp.get("customer_id")
-                if rp_customer_id and not sub.razorpay_customer_id:
+                if rp_customer_id and hasattr(sub, "razorpay_customer_id") and not sub.razorpay_customer_id:
                     sub.razorpay_customer_id = rp_customer_id
-                    sub.save(update_fields=["status", "current_start", "current_end", "razorpay_customer_id"])
-                else:
-                    sub.save(update_fields=["status", "current_start", "current_end"])
 
-            elif event in ("subscription.halted", "subscription.paused"):
-                sub.status = OwnerSubscription.Status.HALTED
-                sub.save(update_fields=["status"])
+            except Exception:
+                # Don’t fail webhook if Razorpay fetch fails
+                pass
 
-            elif event == "subscription.cancelled":
-                sub.status = OwnerSubscription.Status.CANCELLED
-                sub.save(update_fields=["status"])
+            sub.save()
 
-            elif event == "subscription.completed":
-                sub.status = OwnerSubscription.Status.EXPIRED
-                sub.save(update_fields=["status"])
+        elif event in ("subscription.halted", "subscription.paused"):
+            sub.status = OwnerSubscription.Status.HALTED
+            sub.save(update_fields=["status"])
 
-        except Exception:
-            # Even if update fails, ACK 200 to prevent endless retries.
-            # The PaymentEvent is already stored, so you can replay/fix later.
-            return HttpResponse(status=200)
+        elif event == "subscription.cancelled":
+            sub.status = OwnerSubscription.Status.CANCELLED
+            sub.save(update_fields=["status"])
+
+        elif event == "subscription.completed":
+            sub.status = OwnerSubscription.Status.EXPIRED
+            sub.save(update_fields=["status"])
 
         return HttpResponse(status=200)
