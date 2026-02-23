@@ -7,10 +7,12 @@ from .models import Member
 from .serializers import MemberSerializer
 from gym.models import Gym
 from rest_framework.filters import SearchFilter, OrderingFilter
+from billing.permission import HasActiveSubscription
+
 
 
 class GymMemberListCreateView(ListCreateAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasActiveSubscription]
     serializer_class = MemberSerializer
 
 
@@ -42,7 +44,7 @@ class GymMemberListCreateView(ListCreateAPIView):
 
 
 class ExpiringMembersView(ListAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasActiveSubscription]
     serializer_class = MemberSerializer
 
     def get_gym(self):
@@ -81,7 +83,7 @@ class ExpiringMembersView(ListAPIView):
 
 
 class GymMemberDetailView(RetrieveUpdateAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasActiveSubscription]
     serializer_class = MemberSerializer
     lookup_url_kwarg = "member_id"  
 
@@ -101,7 +103,7 @@ class GymMemberDetailView(RetrieveUpdateAPIView):
 
 
 class GymMemberDeleteView(RetrieveDestroyAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasActiveSubscription]
     serializer_class = MemberSerializer
     lookup_url_kwarg = "member_id"  
 
