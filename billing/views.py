@@ -8,7 +8,7 @@ from .client import razorpay_client
 
 
 class CreateSubscriptionCheckout(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = []
 
     def post(self, request):
         plan_id = request.data.get("plan_id")
