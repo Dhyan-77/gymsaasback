@@ -180,16 +180,18 @@ CORS_ALLOW_HEADERS = list(default_headers) + ["authorization"]
 CSRF_TRUSTED_ORIGINS = ["https://unique-enthusiasm-production.up.railway.app"]
 
 # If you want "everything allowed" temporarily:
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS_ALLOW_ALL_ORIGINS = True
 
 # If you want strict mode later, do this instead:
-# CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_ALL_ORIGINS = False
 # Netlify (production) + local dev (so npm run dev → Railway works)
 CORS_ALLOWED_ORIGINS = [
     "https://gymsaasdhyan.netlify.app",
     "https://www.gymsaasdhyan.netlify.app",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    # Add common mobile browser patterns
+    "https://gymsaasdhyan.netlify.app/*",
 ]
 # For mobile testing on same WiFi, add your frontend origin, e.g.:
 # CORS_EXTRA_ORIGINS=http://192.168.1.5:5173
