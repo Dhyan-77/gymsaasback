@@ -179,11 +179,8 @@ CORS_ALLOW_HEADERS = list(default_headers) + ["authorization"]
 
 CSRF_TRUSTED_ORIGINS = ["https://unique-enthusiasm-production.up.railway.app"]
 
-# IMPORTANT:
-# - Don't put "*" inside CORS_ALLOWED_ORIGINS (invalid)
-# - Use allow-all only while testing
 # If you want "everything allowed" temporarily:
-#CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = True
 
 # If you want strict mode later, do this instead:
 # CORS_ALLOW_ALL_ORIGINS = False
