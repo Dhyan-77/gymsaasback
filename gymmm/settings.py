@@ -188,10 +188,10 @@ CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = [
     "https://gymsaasdhyan.netlify.app",
     "https://www.gymsaasdhyan.netlify.app",
+    "https://dhyan.netlify.app",
+    "https://www.dhyan.netlify.app",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    # Add common mobile browser patterns
-    "https://gymsaasdhyan.netlify.app/*",
 ]
 # For mobile testing on same WiFi, add your frontend origin, e.g.:
 # CORS_EXTRA_ORIGINS=http://192.168.1.5:5173
