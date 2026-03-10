@@ -139,10 +139,7 @@ class RazorpayWebhookView(APIView):
               pass
 
             sub.save()
-            
-
-    
-    
+                
 
         elif event == "subscription.completed":
             sub.status = OwnerSubscription.Status.EXPIRED
