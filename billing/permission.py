@@ -12,7 +12,6 @@ class HasActiveSubscription(BasePermission):
         if not user or not user.is_authenticated:
             return False
 
-      
         sub = (
             OwnerSubscription.objects
             .filter(owner=user)
@@ -23,18 +22,34 @@ class HasActiveSubscription(BasePermission):
         if not sub:
             return False
 
-        
-        if hasattr(sub, "is_active_now"):
+        now = timezone.now()
+
+        # Optional model method support
+        if hasattr(sub, "is_active_now") and callable(sub.is_active_now):
             return sub.is_active_now()
 
-       
-        if sub.status != OwnerSubscription.Status.ACTIVE:
-            return False
+        # ACTIVE subscription
+        if sub.status == OwnerSubscription.Status.ACTIVE:
+            if sub.current_start and sub.current_start > now:
+                return False
+            if sub.current_end and sub.current_end < now:
+                return False
+            return True
 
-        now = timezone.now()
-        if sub.current_start and sub.current_start > now:
-            return False
-        if sub.current_end and sub.current_end < now:
-            return False
+        # CANCELLED but still within paid period
+        if (
+            sub.status == OwnerSubscription.Status.CANCELLED
+            and sub.current_end
+            and sub.current_end > now
+        ):
+            return True
 
-        return True
+        # HALTED / PAUSED but current paid period still valid
+        if (
+            sub.status in [OwnerSubscription.Status.HALTED, OwnerSubscription.Status.PAUSED]
+            and sub.current_end
+            and sub.current_end > now
+        ):
+            return True
+
+        return False
