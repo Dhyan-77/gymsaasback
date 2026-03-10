@@ -126,7 +126,23 @@ class RazorpayWebhookView(APIView):
 
         elif event == "subscription.cancelled":
             sub.status = OwnerSubscription.Status.CANCELLED
-            sub.save(update_fields=["status"])
+
+            try:
+               rp = razorpay_client.subscription.fetch(subscription_id)
+               sub.current_start = _ts_to_dt(rp.get("current_start"))
+               sub.current_end = _ts_to_dt(rp.get("current_end"))
+
+               rp_customer_id = rp.get("customer_id")
+               if rp_customer_id and hasattr(sub, "razorpay_customer_id") and not sub.razorpay_customer_id:
+                   sub.razorpay_customer_id = rp_customer_id
+            except Exception:
+              pass
+
+            sub.save()
+            
+
+    
+    
 
         elif event == "subscription.completed":
             sub.status = OwnerSubscription.Status.EXPIRED

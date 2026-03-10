@@ -44,6 +44,11 @@ class MeView(APIView):
 
 
 
+
+
+
+
+
 class SubscriptionStatusView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -56,15 +61,48 @@ class SubscriptionStatusView(APIView):
         )
 
         if not sub:
-            return Response({"status": "none"})
+            return Response({
+                "status": "none",
+                "is_active": False,
+                "current_end": None,
+                "days_remaining": 0,
+                "message": "No subscription found.",
+            })
 
-        days_remaining = None
+        now = timezone.now()
+        days_remaining = 0
+
         if sub.current_end:
-            delta = sub.current_end - timezone.now()
+            delta = sub.current_end - now
             days_remaining = max(delta.days, 0)
+
+        has_access = False
+        message = "Subscription inactive. Please subscribe to continue."
+
+        if sub.status == OwnerSubscription.Status.ACTIVE:
+            has_access = True
+            message = "Subscription is active."
+
+        elif (
+            sub.status == OwnerSubscription.Status.CANCELLED
+            and sub.current_end
+            and sub.current_end > now
+        ):
+            has_access = True
+            message = f"Auto-renew cancelled. Access is active until {sub.current_end}."
+
+        elif (
+            sub.status in [OwnerSubscription.Status.HALTED, OwnerSubscription.Status.PAUSED]
+            and sub.current_end
+            and sub.current_end > now
+        ):
+            has_access = True
+            message = f"Subscription is paused/ halted, but access remains active until {sub.current_end}."
 
         return Response({
             "status": sub.status,
+            "is_active": has_access,
             "current_end": sub.current_end,
             "days_remaining": days_remaining,
+            "message": message,
         })
