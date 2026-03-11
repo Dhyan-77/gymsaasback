@@ -105,7 +105,7 @@ class GymMemberDetailView(RetrieveUpdateAPIView):
 class GymMemberDeleteView(RetrieveDestroyAPIView):
     permission_classes = [IsAuthenticated, HasActiveSubscription]
     serializer_class = MemberSerializer
-    lookup_url_kwarg = "member_id"  
+    lookup_url_kwarg = "member_id"
 
     def get_gym(self):
         gym_id = self.kwargs["gym_id"]
@@ -115,5 +115,9 @@ class GymMemberDeleteView(RetrieveDestroyAPIView):
         if not gym:
             raise NotFound("Gym not found.")
         return gym
+
+    def get_queryset(self):
+        gym = self.get_gym()
+        return Member.objects.filter(gym=gym)
 
   
