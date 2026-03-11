@@ -6,6 +6,6 @@ urlpatterns = [
     path("signup/", SignupView.as_view(), name="signup"),
     path("login/", TokenObtainPairView.as_view(), name="login"),
     path("refresh/", TokenRefreshView.as_view(), name="refresh"),
-    path("me/", MeView.as_view(), name="me"),
+    path("me/again/", MeView.as_view(), name="me"),
     path("me/", SubscriptionStatusView.as_view())
 ]
